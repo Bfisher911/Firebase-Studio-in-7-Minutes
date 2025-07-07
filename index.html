@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Studio in 7 Minutes</title>
+    <!-- Tailwind CSS CDN for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons (lock, copy, checkmark) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom CSS for transitions, animations, and specific styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+            color: #333;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
+        /* Main layout for desktop */
+        @media (min-width: 768px) {
+            .main-content-area {
+                display: flex;
+                height: calc(100vh - 64px); /* Full height minus header */
+            }
+            .step-navigator {
+                flex: 0 0 280px; /* Fixed width for navigator on desktop */
+                overflow-y: auto;
+            }
+            .content-panels {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
+            }
+        }
+
+        /* Mobile layout: accordion style */
+        @media (max-width: 767px) {
+            .step-item {
+                border-bottom: 1px solid #e0e0e0;
+            }
+            .step-item.active .step-title::after {
+                transform: rotate(90deg);
+            }
+            .step-title {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                padding: 1rem;
+                background-color: #f8f8f8;
+                border-radius: 0.5rem;
+                margin-bottom: 0.5rem;
+            }
+            .step-title::after {
+                content: '▶'; /* Right arrow for closed */
+                transition: transform 0.3s ease-in-out;
+            }
+            .step-panel {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.5s ease-out, padding 0.5s ease-out;
+                padding: 0 1rem; /* No padding when collapsed */
+            }
+            .step-item.active .step-panel {
+                max-height: 1000px; /* Arbitrary large value to allow content to expand */
+                padding: 1rem; /* Restore padding when open */
+            }
+        }
+
+        /* Step Navigator Styling */
+        .step-navigator {
+            background-color: #ffffff;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin: 1rem;
+        }
+        .step-item {
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            color: #555;
+        }
+        .step-item:hover {
+            background-color: #e6f0ff; /* Lighter blue on hover */
+            transform: translateX(3px);
+        }
+        .step-item.active {
+            background-color: #d0e0ff; /* Active blue */
+            color: #0056b3;
+            box-shadow: inset 2px 0 0 #0056b3; /* Left border for active */
+        }
+        .step-item span {
+            margin-left: 0.75rem;
+        }
+
+        /* Content Panel Styling */
+        .step-panel {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            opacity: 0; /* Hidden by default */
+            transform: translateX(20px); /* Start slightly off-screen */
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            display: none; /* Hide panels by default */
+        }
+        .step-panel.active {
+            opacity: 1;
+            transform: translateX(0);
+            display: block; /* Show active panel */
+        }
+
+        /* Pages Playground */
+        .pages-playground {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        @media (min-width: 768px) {
+            .pages-playground {
+                flex-direction: row;
+            }
+        }
+
+        .page-tree, .component-toolbox {
+            background-color: #f8f8f8;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border: 1px solid #e0e0e0;
+        }
+        .component-toolbox {
+            min-width: 150px;
+        }
+        .draggable-component {
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.375rem;
+            cursor: grab;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .draggable-component:active {
+            cursor: grabbing;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transform: scale(1.05);
+        }
+        .drop-zone {
+            min-height: 200px;
+            border: 2px dashed #a0a0a0;
+            background-color: #f0f0f0;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: #e6f0ff;
+            border-color: #0056b3;
+        }
+        .dropped-component {
+            background-color: #cceeff;
+            border: 1px solid #99ddff;
+            padding: 0.75rem 1.25rem;
+            margin: 0.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            animation: fadeInScale 0.3s ease-out;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Secrets Manager */
+        .secret-value.blurred {
+            filter: blur(5px);
+            transition: filter 0.3s ease-out;
+        }
+        .secret-value:not(.blurred) {
+            filter: blur(0);
+        }
+        .secret-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            background-color: #f8f8f8;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e0e0e0;
+        }
+        .secret-item .key {
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        .secret-item .value {
+            flex-grow: 1;
+            font-family: monospace;
+            background-color: #ececec;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .lock-badge {
+            cursor: pointer;
+            margin-left: 0.75rem;
+            color: #666;
+            transition: color 0.2s ease;
+        }
+        .lock-badge:hover {
+            color: #0056b3;
+        }
+
+        /* Code Snippet */
+        .code-snippet-container {
+            position: relative;
+            background-color: #2d2d2d; /* Dark background for code */
+            color: #f8f8f2; /* Light text */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        .copy-button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: #007bff;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background-color 0.2s ease;
+        }
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+        .syntax-highlight .keyword { color: #89ddff; }
+        .syntax-highlight .variable { color: #ffcb6b; }
+        .syntax-highlight .string { color: #c3e88d; }
+        .syntax-highlight .comment { color: #616161; }
+
+        /* Deploy Simulator */
+        .terminal-output {
+            background-color: #1e1e1e;
+            color: #00ff00; /* Green text for success */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 1rem;
+            box-shadow: inset 0 0 5px rgba(0,255,0,0.3);
+        }
+        .terminal-line {
+            line-height: 1.4;
+        }
+        .terminal-line.success {
+            color: #00ff00;
+        }
+        .terminal-line.command {
+            color: #89ddff; /* Blue for commands */
+        }
+        .terminal-line.info {
+            color: #f8f8f2; /* White for general info */
+        }
+        .terminal-line.url {
+            color: #ffcb6b; /* Yellow for URLs */
+            text-decoration: underline;
+        }
+
+        /* Tooltip Styling */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            border-bottom: 1px dotted #888; /* Dotted underline for tooltip words */
+        }
+        .tooltip-popup {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            bottom: 125%; /* Position above the element */
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: normal;
+            min-width: 200px;
+            max-width: 300px;
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .tooltip-popup::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-popup,
+        .tooltip-popup.active { /* For keyboard focus/click */
+            opacity: 1;
+            visibility: visible;
+        }
+        .tooltip-close {
+            position: absolute;
+            top: 0.25rem;
+            right: 0.5rem;
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header Section -->
+    <header class="bg-white shadow-md p-4 flex items-center justify-between rounded-b-lg">
+        <h1 class="text-2xl font-bold text-blue-700">Firebase Studio in 7 Minutes</h1>
+        <p class="text-gray-600">Explore Pages & Environment Secrets</p>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="main-content-area md:flex">
+        <!-- Step Navigator (Left Panel on Desktop, Accordion on Mobile) -->
+        <nav class="step-navigator md:w-1/4 p-4 bg-white rounded-lg shadow-md m-4">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Quick Tour Steps</h2>
+            <ul id="step-list">
+                <!-- Each list item represents a step -->
+                <li class="step-item active" data-step="login" aria-controls="panel-login" role="button" tabindex="0">
+                    <i class="fas fa-sign-in-alt"></i><span>Login</span>
+                </li>
+                <li class="step-item" data-step="init" aria-controls="panel-init" role="button" tabindex="0">
+                    <i class="fas fa-rocket"></i><span>Initialize</span>
+                </li>
+                <li class="step-item" data-step="pages" aria-controls="panel-pages" role="button" tabindex="0">
+                    <i class="fas fa-file-alt"></i><span>Pages</span>
+                </li>
+                <li class="step-item" data-step="data" aria-controls="panel-data" role="button" tabindex="0">
+                    <i class="fas fa-database"></i><span>Data</span>
+                </li>
+                <li class="step-item" data-step="secrets" aria-controls="panel-secrets" role="button" tabindex="0">
+                    <i class="fas fa-lock"></i><span>Secrets</span>
+                </li>
+                <li class="step-item" data-step="deploy" aria-controls="panel-deploy" role="button" tabindex="0">
+                    <i class="fas fa-cloud-upload-alt"></i><span>Deploy</span>
+                </li>
+                <li class="step-item" data-step="preview" aria-controls="panel-preview" role="button" tabindex="0">
+                    <i class="fas fa-eye"></i><span>Preview</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Content Panels (Right Panel on Desktop, Below Accordion on Mobile) -->
+        <div class="content-panels md:w-3/4 p-4 m-4">
+            <!-- Login Panel -->
+            <div id="panel-login" class="step-panel active">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 1: Login to Firebase Studio</h3>
+                <p class="text-gray-700 mb-4">
+                    Welcome to the Firebase Studio mini-site! This interactive demo will walk you through key concepts in just 7 minutes.
+                    First, imagine you've securely logged into your Firebase project.
+                </p>
+                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-md flex items-center">
+                    <i class="fas fa-info-circle mr-3 text-xl"></i>
+                    <p>This is a simulated environment. No actual login is required!</p>
+                </div>
+            </div>
+
+            <!-- Initialize Panel -->
+            <div id="panel-init" class="step-panel">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 2: Initialize Your Project</h3>
+                <p class="text-gray-700 mb-4">
+                    Before deploying, you'd typically initialize your project. This involves setting up your Firebase configuration.
+                </p>
+                <div class="code-snippet-container mb-4">
+                    <button class="copy-button" onclick="copyCode('init-code')" aria-label="Copy code to clipboard">Copy</button>
+                    <pre><code id="init-code" class="language-js syntax-highlight">
+<span class="keyword">import</span> { initializeApp } <span class="keyword">from</span> <span class="string">'firebase/app'</span>;
+<span class="keyword">import</span> { getAnalytics } <span class="keyword">from</span> <span class="string">'firebase/analytics'</span>;
+
+<span class="comment">// Your web app's Firebase configuration</span>
+<span class="comment">// For Firebase JS SDK v7.20.0 and later, measurementId is optional</span>
+<span class="keyword">const</span> firebaseConfig = {
+  apiKey: <span class="string">"AIzaSyC..."</span>,
+  authDomain: <span class="string">"your-project.firebaseapp.com"</span>,
+  projectId: <span class="string">"your-project-id"</span>,
+  storageBucket: <span class="string">"your-project.appspot.com"</span>,
+  messagingSenderId: <span class="string">"1234567890"</span>,
+  appId: <span class="string">"1:1234567890:web:abcdef"</span>,
+  measurementId: <span class="string">"G-XXXXXXX"</span>
+};
+
+<span class="comment">// Initialize Firebase</span>
+<span class="keyword">const</span> app = initializeApp(firebaseConfig);
+<span class="keyword">const</span> analytics = getAnalytics(app);
+                    </code></pre>
+                </div>
+                <p class="text-gray-700">
+                    This snippet shows a typical Firebase initialization. In a real project, this would be automatically configured.
+                </p>
+            </div>
+
+            <!-- Pages Panel -->
+            <div id="panel-pages" class="step-panel">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 3: Manage Your Pages</h3>
+                <p class="text-gray-700 mb-4">
+                    Visualize your website's structure and drag-and-drop components onto your pages.
+                </p>
+                <div class="pages-playground bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="page-tree flex-1 p-4 border rounded-lg bg-white">
+                        <h4 class="font-semibold mb-2">Page Tree</h4>
+                        <ul>
+                            <li><i class="fas fa-home mr-2 text-blue-500"></i>Home</li>
+                            <li><i class="fas fa-info-circle mr-2 text-green-500"></i>About</li>
+                            <li><i class="fas fa-chart-line mr-2 text-purple-500"></i>dashboard/
+                                <ul>
+                                    <li class="ml-4"><i class="fas fa-id-card mr-2 text-yellow-500"></i>[id]</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="component-toolbox w-full md:w-1/4 p-4 border rounded-lg bg-white">
+                        <h4 class="font-semibold mb-2">Component Toolbox</h4>
+                        <div class="draggable-component" draggable="true" data-component-type="Card" aria-grabbed="false" tabindex="0">Card</div>
+                        <div class="draggable-component" draggable="true" data-component-type="Button" aria-grabbed="false" tabindex="0">Button</div>
+                        <div class="draggable-component" draggable="true" data-component-type="Image" aria-grabbed="false" tabindex="0">Image</div>
+                    </div>
+                    <div class="drop-zone flex-1 border-2 border-dashed border-gray-400 bg-gray-100 rounded-lg p-4 text-gray-500 flex items-center justify-center text-center">
+                        Drag components here to build your page!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Panel -->
+            <div id="panel-data" class="step-panel">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 4: Interact with Data</h3>
+                <p class="text-gray-700 mb-4">
+                    Firebase provides powerful databases like Cloud Firestore and Realtime Database. Here's a glimpse of data interaction.
+                </p>
+                <div class="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md">
+                    <p class="font-semibold mb-2">Example: Fetching User Data from Firestore</p>
+                    <div class="code-snippet-container mb-4">
+                        <button class="copy-button" onclick="copyCode('data-code')" aria-label="Copy code to clipboard">Copy</button>
+                        <pre><code id="data-code" class="language-js syntax-highlight">
+<span class="keyword">import</span> { getFirestore, doc, getDoc } <span class="keyword">from</span> <span class="string">'firebase/firestore'</span>;
+
+<span class="keyword">const</span> db = getFirestore(app);
+<span class="keyword">const</span> docRef = doc(db, <span class="string">"users"</span>, <span class="string">"alovelace"</span>);
+<span class="keyword">const</span> docSnap = <span class="keyword">await</span> getDoc(docRef);
+
+<span class="keyword">if</span> (docSnap.exists()) {
+  console.log(<span class="string">"Document data:"</span>, docSnap.data());
+} <span class="keyword">else</span> {
+  <span class="comment">// docSnap.data() will be undefined in this case</span>
+  console.log(<span class="string">"No such document!"</span>);
+}
+                        </code></pre>
+                    </div>
+                    <p>This demonstrates fetching a single document. Real-time listeners are also available for dynamic updates.</p>
+                </div>
+            </div>
+
+            <!-- Secrets Panel -->
+            <div id="panel-secrets" class="step-panel">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 5: Manage Environment Secrets</h3>
+                <p class="text-gray-700 mb-4">
+                    Securely store sensitive information like API keys or database credentials using environment secrets.
+                </p>
+
+                <form id="secret-form" class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="mb-4">
+                        <label for="secret-key" class="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+                        <input type="text" id="secret-key" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., VITE_STRIPE_API_KEY" required aria-label="Enter secret key">
+                    </div>
+                    <div class="mb-4">
+                        <label for="secret-value" class="block text-sm font-medium text-gray-700 mb-1">Secret Value</label>
+                        <input type="text" id="secret-value" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., sk_test_123..." required aria-label="Enter secret value">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition duration-200" aria-label="Save secret">Save Secret</button>
+                </form>
+
+                <div id="secrets-list" class="mb-6">
+                    <h4 class="font-semibold mb-2">Your Secrets:</h4>
+                    <!-- Secrets will be dynamically added here -->
+                </div>
+
+                <h4 class="font-semibold mb-2">Usage in Code:</h4>
+                <div class="code-snippet-container">
+                    <button class="copy-button" onclick="copyCode('secrets-code-usage')" aria-label="Copy code to clipboard">Copy</button>
+                    <pre><code id="secrets-code-usage" class="language-js syntax-highlight">
+<span class="comment">// Secrets are exposed via import.meta.env in Vite projects</span>
+<span class="comment">// or similar mechanisms in other build tools.</span>
+
+<span class="comment">// Example: Accessing a secret named VITE_MY_SECRET</span>
+<span class="keyword">const</span> mySecretValue = <span class="variable">import</span>.meta.env.VITE_MY_SECRET;
+
+<span class="comment">// Add your secrets above to see them appear here!</span>
+                    </code></pre>
+                </div>
+            </div>
+
+            <!-- Deploy Panel -->
+            <div id="panel-deploy" class="step-panel">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 6: Deploy Your Site</h3>
+                <p class="text-gray-700 mb-4">
+                    Deploying your web application to Firebase Hosting is quick and easy.
+                </p>
+                <button id="deploy-button" class="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition duration-200 text-lg font-semibold" aria-label="Run firebase deploy command">
+                    firebase deploy --only hosting
+                </button>
+                <div class="terminal-output" id="terminal-output" aria-live="polite" aria-atomic="true">
+                    <!-- Terminal output will appear here -->
+                    <div class="terminal-line info">Ready to deploy...</div>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div id="panel-preview" class="step-panel">
+                <h3 class="text-2xl font-bold text-blue-600 mb-4">Step 7: Preview & Rollback</h3>
+                <p class="text-gray-700 mb-4">
+                    After deployment, you can preview your site and manage versions.
+                </p>
+                <p class="mb-4">
+                    Firebase Hosting provides a <span class="tooltip-container">
+                        <span class="tooltip-trigger" tabindex="0" role="button" aria-describedby="tooltip-preview-channel">preview channel</span>
+                        <span id="tooltip-preview-channel" class="tooltip-popup" role="tooltip">
+                            <span class="tooltip-close" role="button" tabindex="0" aria-label="Close tooltip">×</span>
+                            A temporary URL for sharing and testing changes before they go live on your main site. Useful for collaboration and QA.
+                        </span>
+                    </span> for testing. If something goes wrong, you can easily <span class="tooltip-container">
+                        <span class="tooltip-trigger" tabindex="0" role="button" aria-describedby="tooltip-rollback">rollback</span>
+                        <span id="tooltip-rollback" class="tooltip-popup" role="tooltip">
+                            <span class="tooltip-close" role="button" tabindex="0" aria-label="Close tooltip">×</span>
+                            Revert your deployed site to a previous version. This is a powerful feature for quickly fixing issues after a bad deployment.
+                        </span>
+                    </span> to an earlier version.
+                </p>
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 p-4 rounded-md">
+                    <p class="font-semibold mb-2">Mock Preview:</p>
+                    <p>Your site is live at: <a href="#" class="text-blue-600 hover:underline">https://your-project.web.app</a></p>
+                    <p>Preview channel: <a href="#" class="text-blue-600 hover:underline">https://your-project--pr-123.web.app</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript for interactivity
+
+        // --- Global Variables ---
+        // Store secrets for dynamic display and code generation
+        const secrets = [];
+        // Terminal simulation text for the deploy step
+        const terminalText = [
+            "<span class='command'>firebase deploy --only hosting</span>",
+            "<span class='info'>i  deploying hosting</span>",
+            "<span class='info'>i  hosting: preparing build directory...</span>",
+            "<span class='info'>✔  hosting: 10 files uploaded successfully</span>",
+            "<span class='success'>✔  hosting: file upload complete</span>",
+            "<span class='success'>✔  hosting: release complete</span>",
+            "<span class='info'>Project Console: https://console.firebase.google.com/project/your-project-id/overview</span>",
+            "<span class='url'>Hosting URL: https://your-project.web.app</span>",
+            "<span class='success'>✔  Deploy complete!</span>"
+        ];
+
+        // --- DOM Element References ---
+        const stepList = document.getElementById('step-list');
+        const stepPanels = document.querySelectorAll('.step-panel');
+        const dropZone = document.querySelector('.drop-zone');
+        const draggableComponents = document.querySelectorAll('.draggable-component');
+        const secretForm = document.getElementById('secret-form');
+        const secretsList = document.getElementById('secrets-list');
+        const secretsCodeUsage = document.getElementById('secrets-code-usage');
+        const deployButton = document.getElementById('deploy-button');
+        const terminalOutput = document.getElementById('terminal-output');
+        const tooltips = document.querySelectorAll('.tooltip-container');
+
+        // --- Step Navigator Logic ---
+        /**
+         * Handles clicks and keyboard events on step items to switch active panel.
+         * @param {Event} event - The click or keyboard event.
+         */
+        function handleStepClick(event) {
+            let target = event.target;
+            // Traverse up to find the .step-item if a child element was clicked
+            while (target && !target.classList.contains('step-item')) {
+                target = target.parentElement;
+            }
+            if (!target) return; // Exit if no step-item found
+
+            // Only proceed if it's a click or Enter/Space key press
+            if (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' '))) {
+                const stepId = target.dataset.step;
+
+                // Remove 'active' from all step items and panels
+                document.querySelectorAll('.step-item').forEach(item => {
+                    item.classList.remove('active');
+                    item.setAttribute('aria-selected', 'false');
+                });
+                stepPanels.forEach(panel => {
+                    panel.classList.remove('active');
+                    panel.style.display = 'none'; // Hide panels for mobile accordion
+                });
+
+                // Add 'active' to the clicked step item
+                target.classList.add('active');
+                target.setAttribute('aria-selected', 'true');
+
+                // Show the corresponding panel
+                const activePanel = document.getElementById(`panel-${stepId}`);
+                if (activePanel) {
+                    activePanel.classList.add('active');
+                    activePanel.style.display = 'block'; // Show panel for mobile accordion
+                }
+            }
+        }
+
+        // Add event listeners to step items
+        stepList.addEventListener('click', handleStepClick);
+        stepList.addEventListener('keydown', handleStepClick); // For keyboard navigation
+
+        // --- Pages Playground (Drag & Drop) Logic ---
+        let draggedComponent = null;
+
+        /**
+         * Handles the start of a drag operation.
+         * @param {Event} event - The dragstart event.
+         */
+        function handleDragStart(event) {
+            draggedComponent = event.target;
+            event.dataTransfer.setData('text/plain', draggedComponent.dataset.componentType); // Set data for drop
+            event.dataTransfer.effectAllowed = 'copy'; // Visual feedback
+            draggedComponent.classList.add('opacity-50', 'shadow-lg'); // Add visual feedback
+            draggedComponent.setAttribute('aria-grabbed', 'true');
+        }
+
+        /**
+         * Handles the drag over event to allow dropping.
+         * @param {Event} event - The dragover event.
+         */
+        function handleDragOver(event) {
+            event.preventDefault(); // Necessary to allow drop
+            event.dataTransfer.dropEffect = 'copy';
+            dropZone.classList.add('drag-over'); // Visual feedback for drop zone
+        }
+
+        /**
+         * Handles the drag leave event.
+         */
+        function handleDragLeave() {
+            dropZone.classList.remove('drag-over');
+        }
+
+        /**
+         * Handles the drop event, adding the component to the canvas.
+         * @param {Event} event - The drop event.
+         */
+        function handleDrop(event) {
+            event.preventDefault();
+            dropZone.classList.remove('drag-over');
+
+            const componentType = event.dataTransfer.getData('text/plain');
+            if (componentType) {
+                const newComponent = document.createElement('div');
+                newComponent.classList.add('dropped-component');
+                newComponent.textContent = componentType;
+                dropZone.appendChild(newComponent);
+                dropZone.innerHTML = ''; // Clear initial message
+                dropZone.appendChild(newComponent); // Add the new component
+            }
+        }
+
+        /**
+         * Handles the end of a drag operation, cleaning up visual feedback.
+         */
+        function handleDragEnd() {
+            if (draggedComponent) {
+                draggedComponent.classList.remove('opacity-50', 'shadow-lg');
+                draggedComponent.setAttribute('aria-grabbed', 'false');
+                draggedComponent = null;
+            }
+        }
+
+        // Add event listeners for drag and drop
+        draggableComponents.forEach(component => {
+            component.addEventListener('dragstart', handleDragStart);
+            component.addEventListener('dragend', handleDragEnd);
+        });
+
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+
+        // Basic keyboard accessibility for components (Enter to "drop")
+        draggableComponents.forEach(component => {
+            component.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    const componentType = component.dataset.componentType;
+                    const newComponent = document.createElement('div');
+                    newComponent.classList.add('dropped-component');
+                    newComponent.textContent = componentType;
+                    dropZone.innerHTML = ''; // Clear initial message
+                    dropZone.appendChild(newComponent);
+                    // Announce the action for screen readers
+                    alert(`Added ${componentType} to the canvas.`);
+                }
+            });
+        });
+
+
+        // --- Secrets Manager Logic ---
+        /**
+         * Updates the code snippet to reflect currently added secrets.
+         */
+        function updateSecretsCodeSnippet() {
+            let code = `<span class="comment">// Secrets are exposed via import.meta.env in Vite projects</span>
+<span class="comment">// or similar mechanisms in other build tools.</span>
+
+<span class="comment">// Example: Accessing a secret named VITE_MY_SECRET</span>
+<span class="keyword">const</span> mySecretValue = <span class="variable">import</span>.meta.env.VITE_MY_SECRET;
+
+`;
+            if (secrets.length > 0) {
+                code += `<span class="comment">// Your current secrets:</span>\n`;
+                secrets.forEach(secret => {
+                    code += `<span class="keyword">const</span> ${secret.key.replace('VITE_', '').toLowerCase()} = <span class="variable">import</span>.meta.env.${secret.key};\n`;
+                });
+            } else {
+                code += `<span class="comment">// Add your secrets above to see them appear here!</span>`;
+            }
+            secretsCodeUsage.innerHTML = code;
+        }
+
+        /**
+         * Renders the list of secrets in the UI.
+         */
+        function renderSecretsList() {
+            secretsList.innerHTML = '<h4 class="font-semibold mb-2">Your Secrets:</h4>'; // Reset list
+            if (secrets.length === 0) {
+                secretsList.innerHTML += '<p class="text-gray-500">No secrets added yet.</p>';
+            }
+            secrets.forEach((secret, index) => {
+                const secretItem = document.createElement('div');
+                secretItem.classList.add('secret-item');
+                secretItem.innerHTML = `
+                    <span class="key">${secret.key}:</span>
+                    <span class="value blurred" data-secret-index="${index}" aria-hidden="true">${secret.value}</span>
+                    <i class="fas fa-lock lock-badge" data-secret-index="${index}" role="button" tabindex="0" aria-label="Toggle secret visibility"></i>
+                `;
+                secretsList.appendChild(secretItem);
+            });
+            updateSecretsCodeSnippet();
+        }
+
+        /**
+         * Handles form submission for adding a new secret.
+         * @param {Event} event - The form submit event.
+         */
+        secretForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const keyInput = document.getElementById('secret-key');
+            const valueInput = document.getElementById('secret-value');
+
+            const key = keyInput.value.trim();
+            const value = valueInput.value.trim();
+
+            if (key && value) {
+                secrets.push({ key, value, hidden: true });
+                renderSecretsList();
+                keyInput.value = '';
+                valueInput.value = '';
+                alert(`Secret "${key}" added.`);
+            } else {
+                alert('Please enter both key and value for the secret.');
+            }
+        });
+
+        /**
+         * Handles clicks on the lock badge to toggle secret visibility.
+         * @param {Event} event - The click event.
+         */
+        secretsList.addEventListener('click', (event) => {
+            const lockBadge = event.target.closest('.lock-badge');
+            if (lockBadge) {
+                const index = parseInt(lockBadge.dataset.secretIndex);
+                if (!isNaN(index) && secrets[index]) {
+                    const valueSpan = secretsList.querySelector(`.value[data-secret-index="${index}"]`);
+                    if (valueSpan) {
+                        secrets[index].hidden = !secrets[index].hidden;
+                        valueSpan.classList.toggle('blurred', secrets[index].hidden);
+                        valueSpan.setAttribute('aria-hidden', secrets[index].hidden);
+                        lockBadge.classList.toggle('fa-lock-open', !secrets[index].hidden);
+                        lockBadge.classList.toggle('fa-lock', secrets[index].hidden);
+                        alert(`Secret value for "${secrets[index].key}" is now ${secrets[index].hidden ? 'hidden' : 'visible'}.`);
+                    }
+                }
+            }
+        });
+
+        // Keyboard accessibility for lock badge
+        secretsList.addEventListener('keydown', (event) => {
+            const lockBadge = event.target.closest('.lock-badge');
+            if (lockBadge && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                lockBadge.click(); // Simulate click
+            }
+        });
+
+        // Initial render of secrets list
+        renderSecretsList();
+
+        // --- Code Snippet Copy to Clipboard ---
+        /**
+         * Copies the text content of a specified code block to the clipboard.
+         * @param {string} elementId - The ID of the code element to copy.
+         */
+        function copyCode(elementId) {
+            const codeElement = document.getElementById(elementId);
+            if (codeElement) {
+                const textToCopy = codeElement.innerText;
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('Code copied to clipboard!');
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    alert('Failed to copy code. Please copy manually.');
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            }
+        }
+
+        // --- Deploy Simulator Logic ---
+        let deployInterval;
+        let lineIndex = 0;
+
+        /**
+         * Simulates the terminal output for deployment.
+         */
+        function simulateDeploy() {
+            if (lineIndex < terminalText.length) {
+                const newLine = document.createElement('div');
+                newLine.classList.add('terminal-line');
+                newLine.innerHTML = terminalText[lineIndex];
+                terminalOutput.appendChild(newLine);
+                terminalOutput.scrollTop = terminalOutput.scrollHeight; // Auto-scroll to bottom
+                lineIndex++;
+            } else {
+                clearInterval(deployInterval); // Stop simulation when all lines are displayed
+                deployButton.disabled = false; // Re-enable button
+                deployButton.textContent = 'firebase deploy --only hosting';
+                alert('Deployment simulation complete!');
+            }
+        }
+
+        /**
+         * Starts the deploy simulation when the button is clicked.
+         */
+        deployButton.addEventListener('click', () => {
+            deployButton.disabled = true; // Disable button during simulation
+            deployButton.textContent = 'Deploying...';
+            terminalOutput.innerHTML = ''; // Clear previous output
+            lineIndex = 0; // Reset line index
+            deployInterval = setInterval(simulateDeploy, 500); // Add a new line every 0.5 seconds
+        });
+
+        // --- Tooltip Logic ---
+        tooltips.forEach(container => {
+            const trigger = container.querySelector('.tooltip-trigger');
+            const popup = container.querySelector('.tooltip-popup');
+            const closeButton = container.querySelector('.tooltip-close');
+
+            // Show tooltip on hover
+            trigger.addEventListener('mouseenter', () => {
+                popup.classList.add('active');
+            });
+
+            // Hide tooltip on mouse leave
+            trigger.addEventListener('mouseleave', () => {
+                // Only hide if not focused (for keyboard users)
+                if (document.activeElement !== trigger && document.activeElement !== closeButton) {
+                     popup.classList.remove('active');
+                }
+            });
+
+            // Show tooltip on focus (for keyboard accessibility)
+            trigger.addEventListener('focus', () => {
+                popup.classList.add('active');
+            });
+
+            // Hide tooltip when trigger loses focus and popup is not active
+            trigger.addEventListener('blur', () => {
+                // Give a small delay to allow focus to shift to close button
+                setTimeout(() => {
+                    if (document.activeElement !== closeButton) {
+                        popup.classList.remove('active');
+                    }
+                }, 10);
+            });
+
+            // Hide tooltip when close button is clicked or focused and Enter/Space is pressed
+            closeButton.addEventListener('click', () => {
+                popup.classList.remove('active');
+                trigger.focus(); // Return focus to the trigger element
+            });
+
+            closeButton.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    closeButton.click(); // Simulate click
+                }
+            });
+
+            // Hide tooltip if focus moves outside the tooltip or trigger
+            document.addEventListener('focusin', (event) => {
+                if (!container.contains(event.target)) {
+                    popup.classList.remove('active');
+                }
+            });
+        });
+
+        // --- Initial Setup ---
+        // Ensure the first step is active on load for desktop, and panels are hidden for mobile
+        window.onload = () => {
+            // Activate the first step and its panel
+            const firstStepItem = document.querySelector('.step-item');
+            const firstStepPanel = document.querySelector('.step-panel');
+
+            if (firstStepItem) {
+                firstStepItem.classList.add('active');
+                firstStepItem.setAttribute('aria-selected', 'true');
+            }
+            if (firstStepPanel) {
+                firstStepPanel.classList.add('active');
+                firstStepPanel.style.display = 'block';
+            }
+
+            // For mobile, ensure all other panels are initially hidden
+            if (window.innerWidth < 768) {
+                stepPanels.forEach(panel => {
+                    if (panel !== firstStepPanel) {
+                        panel.style.display = 'none';
+                        panel.classList.remove('active'); // Ensure mobile accordion state is correct
+                    }
+                });
+            }
+        };
+
+        // Adjust panel display on window resize for responsive layout
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) { // Desktop view
+                stepPanels.forEach(panel => {
+                    panel.style.display = 'block'; // Always show panels on desktop
+                    // Re-apply active class if it was removed by mobile accordion logic
+                    const stepId = panel.id.replace('panel-', '');
+                    const correspondingStepItem = document.querySelector(`.step-item[data-step="${stepId}"]`);
+                    if (correspondingStepItem && correspondingStepItem.classList.contains('active')) {
+                        panel.classList.add('active');
+                    } else {
+                        panel.classList.remove('active');
+                    }
+                });
+            } else { // Mobile view
+                stepPanels.forEach(panel => {
+                    const stepId = panel.id.replace('panel-', '');
+                    const correspondingStepItem = document.querySelector(`.step-item[data-step="${stepId}"]`);
+                    if (correspondingStepItem && !correspondingStepItem.classList.contains('active')) {
+                        panel.style.display = 'none'; // Hide non-active panels
+                    } else {
+                        panel.style.display = 'block'; // Show active panel
+                    }
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>
